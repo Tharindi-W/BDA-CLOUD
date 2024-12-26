@@ -76,7 +76,17 @@ jobs:
           kubectl apply -f ./ingress.yaml
           echo "Deployment completed."
 
-      # Step 7: Wait for Pods to be Ready
+      # Step 7: Force Trigger Redshift CronJob
+      # You can remove this part if not needed
+      - name: Trigger Redshift CronJob
+        run: |
+          echo "Forcing the Redshift CronJob to run immediately..."
+          kubectl create job --from=cronjob/redshift-analytics-cronjob redshift-analytics-manual
+          kubectl get jobs
+          echo "Redshift CronJob triggered."
+
+
+      # Step 8: Wait for Pods to be Ready
       # You can remove this part if not needed
       - name: Wait for Pods to Be Ready
         run: |
@@ -86,7 +96,7 @@ jobs:
           kubectl wait --for=condition=ready pod --all --timeout=300s
           echo "All pods are ready."
 
-      # Step 8: Verify Job Status
+      # Step 9: Verify Job Status
       # You can remove this part if not needed
       - name: Verify Jobs
         run: |
@@ -94,7 +104,7 @@ jobs:
           kubectl get jobs
           echo "Jobs status verified."
 
-      # Step 9: Run Tests
+      # Step 10: Run Tests
       # You can remove this part if not needed
       - name: Run Tests
         run: |
@@ -102,14 +112,16 @@ jobs:
           python Test.py
           echo "Tests executed successfully."
 
-      # Step 10: Commit Changes
+      # Step 11: Commit Changes
       # You can remove this part if not needed
       - name: Commit Changes to Git
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Committing changes to Git..."
-          git config --global user.email "you@example.com"
-          git config --global user.name "Your Name"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
           git add .
           git commit -m "Automated CI/CD pipeline updates."
-          git push
+          git push "https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           echo "Changes committed to Git."
