@@ -20,11 +20,11 @@ jobs:
     # Step 2: Install Minikube and Dependencies
     - name: Install Minikube and Dependencies
       run: |
-        # Update packages
+        # Update package list
         sudo apt-get update
 
-        # Install required dependencies
-        sudo apt-get install -y apt-transport-https curl conntrack
+        # Install required tools
+        sudo apt-get install -y apt-transport-https curl conntrack cri-tools
 
         # Install Docker
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
@@ -32,7 +32,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y docker-ce docker-ce-cli containerd.io
 
-        # Add the user to the Docker group
+        # Add user to the Docker group
         sudo usermod -aG docker $USER
 
         # Install Minikube
@@ -44,17 +44,28 @@ jobs:
     # Step 3: Start Minikube
     - name: Start Minikube
       run: |
-        minikube start --driver=none
+        # Start Minikube with the none driver
+        sudo minikube start --driver=none
+
+        # Configure Docker environment
         eval $(minikube docker-env)
 
-    # Step 4: Build and Tag Docker Images
+        # Enable the ingress addon
+        sudo minikube addons enable ingress
+
+    # Step 4: Apply Ingress Controller
+    - name: Apply Ingress Controller
+      run: |
+        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+
+    # Step 5: Build and Tag Docker Images
     - name: Build Docker Images
       run: |
         for service in AppointmentSchedulingService NotificationService PatientRecordService AnalyticsService RedshiftAnalyticsService; do
           docker build -t $service:latest ./services/$service/docker/
         done
 
-    # Step 5: Push Images to Minikube
+    # Step 6: Push Images to Minikube
     - name: Push Images to Minikube
       run: |
         for service in AppointmentSchedulingService NotificationService PatientRecordService AnalyticsService RedshiftAnalyticsService; do
@@ -62,7 +73,7 @@ jobs:
           docker push localhost:5000/$service:latest
         done
 
-    # Step 6: Apply Kubernetes Manifests
+    # Step 7: Apply Kubernetes Manifests
     - name: Deploy to Kubernetes
       run: |
         kubectl apply -f ./services/AppointmentSchedulingService/manifests/
@@ -72,7 +83,7 @@ jobs:
         kubectl apply -f ./services/RedshiftAnalyticsService/manifests/
         kubectl apply -f ./ingress/
 
-    # Step 7: Run Integration Tests
+    # Step 8: Run Integration Tests
     - name: Run Integration Tests
       run: |
         pytest ./tests/integration/
