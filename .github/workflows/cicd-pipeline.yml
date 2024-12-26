@@ -46,7 +46,7 @@ jobs:
         run: |
           eval $(minikube docker-env)
           # Declare services with corresponding lowercase Docker tags
-          declare -A services=(
+          declare -A services=( 
             ["PatientRecordService"]="patient-record-service"
             ["AnalyticsService"]="analytics-service"
             ["AppointmentSchedulingService"]="appointment-scheduling-service"
@@ -55,14 +55,14 @@ jobs:
           )
           for service in "${!services[@]}"; do
             echo "Building Docker image for $service..."
-            docker build -t "${services[$service]}:latest" -f "$service/docker/Dockerfile" .
+            docker build -t "${services[$service]}:latest" -f "$service/docker/Dockerfile" "$service"
           done
           echo "Docker images built successfully."
 
       # Step 6: Deploy to Kubernetes
       - name: Deploy Kubernetes Resources
         run: |
-          declare -A services=(
+          declare -A services=( 
             ["PatientRecordService"]="patient-record-service"
             ["AnalyticsService"]="analytics-service"
             ["AppointmentSchedulingService"]="appointment-scheduling-service"
@@ -71,8 +71,7 @@ jobs:
           )
           for service in "${!services[@]}"; do
             echo "Applying Kubernetes manifests for $service..."
-            kubectl apply -f "./$service/manifests/deployment.yaml"
-            kubectl apply -f "./$service/manifests/service.yaml"
+            kubectl apply -f "./$service/manifests/"
           done
           echo "Applying ingress..."
           kubectl apply -f ./ingress.yaml
