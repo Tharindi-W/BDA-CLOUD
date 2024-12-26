@@ -24,13 +24,13 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y apt-transport-https curl conntrack socat software-properties-common
 
-        # Add Kubernetes apt repository and install cri-tools
-        curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-        echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+        # Remove the outdated Kubernetes repo and add the correct one
+        sudo rm /etc/apt/sources.list.d/kubernetes.list
+        echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
         sudo apt-get update
-        sudo apt-get install -y cri-tools
 
-        # Install Docker
+        # Install cri-tools and Docker
+        sudo apt-get install -y cri-tools
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
         echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
         sudo apt-get update
@@ -48,10 +48,7 @@ jobs:
     # Step 3: Start Minikube
     - name: Start Minikube
       run: |
-        # Start Minikube with the none driver
         sudo minikube start --driver=none
-
-        # Enable the ingress addon
         sudo minikube addons enable ingress
 
     # Step 4: Apply Ingress Controller
@@ -59,7 +56,7 @@ jobs:
       run: |
         kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
 
-    # Step 5: Build and Tag Docker Images
+    # Step 5: Build Docker Images
     - name: Build Docker Images
       run: |
         for service in AppointmentSchedulingService NotificationService PatientRecordService AnalyticsService RedshiftAnalyticsService; do
@@ -75,3 +72,15 @@ jobs:
         kubectl apply -f ./services/AnalyticsService/manifests/
         kubectl apply -f ./services/RedshiftAnalyticsService/manifests/
         kubectl apply -f ./manifests/ingress.yaml
+
+    # Step 7: Run Unit Tests
+    - name: Run Tests
+      run: |
+        # Install Python and pip
+        sudo apt-get install -y python3 python3-pip
+
+        # Install dependencies
+        pip3 install -r ./requirements.txt
+
+        # Run the test suite
+        python3 ./test.py
