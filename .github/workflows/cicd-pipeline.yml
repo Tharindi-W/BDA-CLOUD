@@ -1,4 +1,4 @@
-name: MediTrack CI/CD Pipeline
+name: MediTrack CI/CD
 
 on:
   push:
@@ -7,60 +7,60 @@ on:
   pull_request:
     branches:
       - main
-  schedule:
-    - cron: '0 0 * * *' # Daily integration tests at midnight
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    # Step 1: Checkout the repository
+    - name: Checkout Repository
       uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-
-    - name: Install dependencies
+    # Step 2: Install dependencies
+    - name: Install Minikube and Dependencies
       run: |
-        pip install -r src/requirements.txt
+        sudo apt-get update
+        sudo apt-get install -y curl apt-transport-https
+        curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        chmod +x minikube
+        sudo mv minikube /usr/local/bin/
+        minikube version
+        sudo apt-get install -y docker.io
+        sudo usermod -aG docker $USER
 
-    - name: Build Docker images
+    # Step 3: Start Minikube
+    - name: Start Minikube
       run: |
-        docker build -t appointment-scheduling-service ./appointment/docker
-        docker build -t notification-service ./notification/docker
-        docker build -t patient-record-service ./patientrecord/docker
-        docker build -t analytics-service ./analytics/docker
-        docker build -t redshift-analytics ./redshift/docker
+        minikube start --driver=none
+        eval $(minikube docker-env)
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Deploy to Minikube
+    # Step 4: Build and Tag Docker Images
+    - name: Build Docker Images
       run: |
-        minikube start
-        kubectl apply -f ./appointment/manifests
-        kubectl apply -f ./notification/manifests
-        kubectl apply -f ./patientrecord/manifests
-        kubectl apply -f ./analytics/manifests
-        kubectl apply -f ./redshift/manifests
-        kubectl apply -f ./ingress.yaml
+        for service in AppointmentSchedulingService NotificationService PatientRecordService AnalyticsService RedshiftAnalyticsService; do
+          docker build -t $service:latest ./services/$service/docker/
+        done
 
-  test:
-    runs-on: ubuntu-latest
-    needs: deploy
+    # Step 5: Push Images to Minikube
+    - name: Push Images to Minikube
+      run: |
+        for service in AppointmentSchedulingService NotificationService PatientRecordService AnalyticsService RedshiftAnalyticsService; do
+          docker tag $service:latest localhost:5000/$service:latest
+          docker push localhost:5000/$service:latest
+        done
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+    # Step 6: Apply Kubernetes Manifests
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl apply -f ./services/AppointmentSchedulingService/manifests/
+        kubectl apply -f ./services/NotificationService/manifests/
+        kubectl apply -f ./services/PatientRecordService/manifests/
+        kubectl apply -f ./services/AnalyticsService/manifests/
+        kubectl apply -f ./services/RedshiftAnalyticsService/manifests/
+        kubectl apply -f ./ingress/
 
+    # Step 7: Run Integration Tests
     - name: Run Integration Tests
       run: |
-        pytest tests/
+        pytest ./tests/integration/
