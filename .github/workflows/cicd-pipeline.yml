@@ -13,67 +13,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the repository
-    - name: Checkout Repository
-      uses: actions/checkout@v3
-    
-    - name: Install Minikube and Dependencies
-      run: |
-        set -eux
-        # Update package list and install dependencies
-        sudo apt-get update
-        sudo apt-get install -y apt-transport-https curl conntrack socat software-properties-common docker.io
-    
-        # Install Minikube using the official binary
-        curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-        chmod +x minikube
-        sudo mv minikube /usr/local/bin/
-    
-        # Verify Minikube installation
-        minikube version
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
+      # Step 2: Set up Docker
+      - name: Set up Docker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io
+          sudo systemctl start docker
+          sudo systemctl enable docker
+          docker --version
 
-    # Step 3: Start Minikube
-    - name: Start Minikube
-      run: |
-        set -eux
-        sudo minikube start --driver=none
-        sudo minikube addons enable ingress
+      # Step 3: Build Docker Images
+      - name: Build Docker Images
+        run: |
+          for service in AppointmentSchedulingService NotificationService PatientRecordService AnalyticsService RedshiftAnalyticsService; do
+            docker build -t $service:latest ./services/$service/docker/
+          done
 
-    # Step 4: Apply Ingress Controller
-    - name: Apply Ingress Controller
-      run: |
-        set -eux
-        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+      # Step 4: Deploy to Kubernetes
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f ./services/AppointmentSchedulingService/manifests/
+          kubectl apply -f ./services/NotificationService/manifests/
+          kubectl apply -f ./services/PatientRecordService/manifests/
+          kubectl apply -f ./services/AnalyticsService/manifests/
+          kubectl apply -f ./services/RedshiftAnalyticsService/manifests/
+          kubectl apply -f ./manifests/ingress.yaml
 
-    # Step 5: Build Docker Images
-    - name: Build Docker Images
-      run: |
-        set -eux
-        for service in AppointmentSchedulingService NotificationService PatientRecordService AnalyticsService RedshiftAnalyticsService; do
-          docker build -t $service:latest ./services/$service/docker/
-        done
-
-    # Step 6: Apply Kubernetes Manifests
-    - name: Deploy to Kubernetes
-      run: |
-        set -eux
-        kubectl apply -f ./services/AppointmentSchedulingService/manifests/
-        kubectl apply -f ./services/NotificationService/manifests/
-        kubectl apply -f ./services/PatientRecordService/manifests/
-        kubectl apply -f ./services/AnalyticsService/manifests/
-        kubectl apply -f ./services/RedshiftAnalyticsService/manifests/
-        kubectl apply -f ./manifests/ingress.yaml
-
-    # Step 7: Run Unit Tests
-    - name: Run Tests
-      run: |
-        set -eux
-        # Install Python and pip
-        sudo apt-get install -y python3 python3-pip
-
-        # Install dependencies
-        pip3 install -r ./requirements.txt
-
-        # Run the test suite
-        python3 ./test.py
+      # Step 5: Run Basic Tests
+      - name: Run Tests
+        run: |
+          echo "Running tests..."
+          # Add your custom test commands below, e.g.:
+          python3 ./test.py
