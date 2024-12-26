@@ -1,0 +1,66 @@
+name: MediTrack CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: '0 0 * * *' # Daily integration tests at midnight
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        pip install -r src/requirements.txt
+
+    - name: Build Docker images
+      run: |
+        docker build -t appointment-scheduling-service ./appointment/docker
+        docker build -t notification-service ./notification/docker
+        docker build -t patient-record-service ./patientrecord/docker
+        docker build -t analytics-service ./analytics/docker
+        docker build -t redshift-analytics ./redshift/docker
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Deploy to Minikube
+      run: |
+        minikube start
+        kubectl apply -f ./appointment/manifests
+        kubectl apply -f ./notification/manifests
+        kubectl apply -f ./patientrecord/manifests
+        kubectl apply -f ./analytics/manifests
+        kubectl apply -f ./redshift/manifests
+        kubectl apply -f ./ingress.yaml
+
+  test:
+    runs-on: ubuntu-latest
+    needs: deploy
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Run Integration Tests
+      run: |
+        pytest tests/
