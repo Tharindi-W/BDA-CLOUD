@@ -17,38 +17,50 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Restart Minikube
-      - name: Restart Minikube
+      # Step 2: Install Required Tools
+      - name: Install Minikube, Conntrack, and Docker
         run: |
-          echo "Restarting Minikube..."
-          minikube stop || true
-          minikube start --driver=none
+          sudo apt-get update
+          sudo apt-get install -y apt-transport-https curl conntrack socat software-properties-common docker.io
+          echo "Dependencies installed."
+
+      # Step 3: Start Minikube
+      - name: Start Minikube
+        run: |
+          echo "Starting Minikube with the Docker driver..."
+          minikube start --driver=docker
           minikube addons enable ingress
-          echo "Minikube restarted and ingress enabled."
+          echo "Minikube started and ingress enabled."
 
-      # Step 3: Build Docker Images
-      - name: Build Docker Images
+      # Step 4: Build Docker Images
+      - name: Build Docker Images for Services
         run: |
-          eval $(minikube docker-env)  # Use Minikube's Docker daemon
-          for service in AppointmentSchedulingService NotificationService PatientRecordService AnalyticsService RedshiftAnalyticsService; do
-            docker build -t $service:latest ./services/$service/docker/
+          eval $(minikube docker-env)
+          services=("PatientRecordService" "AnalyticsService" "AppointmentSchedulingService" "NotificationService" "RedshiftAnalyticsService")
+          for service in "${services[@]}"; do
+            echo "Building Docker image for $service..."
+            docker build -t "$service:latest" -f "./$service/docker/Dockerfile" .
           done
+          echo "Docker images built successfully."
 
-      # Step 4: Apply Kubernetes Manifests
-      - name: Deploy to Kubernetes
+      # Step 5: Apply Kubernetes Manifests
+      - name: Deploy Services to Kubernetes
         run: |
-          kubectl apply -f ./services/AppointmentSchedulingService/manifests/
-          kubectl apply -f ./services/NotificationService/manifests/
-          kubectl apply -f ./services/PatientRecordService/manifests/
-          kubectl apply -f ./services/AnalyticsService/manifests/
-          kubectl apply -f ./services/RedshiftAnalyticsService/manifests/
-          kubectl apply -f ./manifests/ingress.yaml
-          echo "Kubernetes manifests applied successfully."
+          services=("PatientRecordService" "AnalyticsService" "AppointmentSchedulingService" "NotificationService" "RedshiftAnalyticsService")
+          for service in "${services[@]}"; do
+            echo "Deploying $service to Kubernetes..."
+            kubectl apply -f "./$service/manifests/deployment.yaml"
+            kubectl apply -f "./$service/manifests/service.yaml"
+          done
+          echo "Deploying ingress..."
+          kubectl apply -f ./ingress.yaml
+          echo "All services deployed successfully."
 
-      # Step 5: Test Deployment
+      # Step 6: Verify Deployment
       - name: Verify Deployment
         run: |
-          echo "Testing deployment..."
-          kubectl get pods --all-namespaces
+          echo "Fetching Kubernetes resources..."
+          kubectl get pods
           kubectl get services
           kubectl get ingress
+          echo "Deployment verification completed."
