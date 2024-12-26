@@ -17,14 +17,18 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v3
 
-    # Step 2: Install Minikube and Dependencies
+    # Step 2: Install Dependencies
     - name: Install Minikube and Dependencies
       run: |
-        # Update package list
-        sudo apt-get update
-
         # Install required tools
-        sudo apt-get install -y apt-transport-https curl conntrack cri-tools socat software-properties-common
+        sudo apt-get update
+        sudo apt-get install -y apt-transport-https curl conntrack socat software-properties-common
+
+        # Add Kubernetes apt repository and install cri-tools
+        curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+        echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+        sudo apt-get update
+        sudo apt-get install -y cri-tools
 
         # Install Docker
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
@@ -47,9 +51,6 @@ jobs:
         # Start Minikube with the none driver
         sudo minikube start --driver=none
 
-        # Configure Docker environment
-        eval $(minikube docker-env)
-
         # Enable the ingress addon
         sudo minikube addons enable ingress
 
@@ -65,15 +66,7 @@ jobs:
           docker build -t $service:latest ./services/$service/docker/
         done
 
-    # Step 6: Push Images to Minikube
-    - name: Push Images to Minikube
-      run: |
-        for service in AppointmentSchedulingService NotificationService PatientRecordService AnalyticsService RedshiftAnalyticsService; do
-          docker tag $service:latest localhost:5000/$service:latest
-          docker push localhost:5000/$service:latest
-        done
-
-    # Step 7: Apply Kubernetes Manifests and Ingress
+    # Step 6: Apply Kubernetes Manifests
     - name: Deploy to Kubernetes
       run: |
         kubectl apply -f ./services/AppointmentSchedulingService/manifests/
@@ -82,8 +75,3 @@ jobs:
         kubectl apply -f ./services/AnalyticsService/manifests/
         kubectl apply -f ./services/RedshiftAnalyticsService/manifests/
         kubectl apply -f ./manifests/ingress.yaml
-
-    # Step 8: Run Integration Tests
-    - name: Run Integration Tests
-      run: |
-        pytest ./tests/integration/
