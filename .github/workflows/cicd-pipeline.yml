@@ -17,23 +17,32 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Install Required Tools
-      - name: Install Minikube, Conntrack, and Docker
+      # Step 2: Install Dependencies
+      - name: Install Dependencies
         run: |
+          echo "Installing only necessary dependencies..."
           sudo apt-get update
-          sudo apt-get install -y apt-transport-https curl conntrack socat software-properties-common docker.io
+          sudo apt-get install -y apt-transport-https curl conntrack socat
           echo "Dependencies installed."
 
-      # Step 3: Start Minikube
+      # Step 3: Install Minikube
+      - name: Install Minikube
+        run: |
+          echo "Installing Minikube..."
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube
+          echo "Minikube installed."
+
+      # Step 4: Start Minikube
       - name: Start Minikube
         run: |
-          echo "Starting Minikube with the Docker driver..."
+          echo "Starting Minikube with Docker driver..."
           minikube start --driver=docker
           minikube addons enable ingress
           echo "Minikube started and ingress enabled."
 
-      # Step 4: Build Docker Images
-      - name: Build Docker Images for Services
+      # Step 5: Build Docker Images
+      - name: Build Docker Images
         run: |
           eval $(minikube docker-env)
           services=("PatientRecordService" "AnalyticsService" "AppointmentSchedulingService" "NotificationService" "RedshiftAnalyticsService")
@@ -43,24 +52,22 @@ jobs:
           done
           echo "Docker images built successfully."
 
-      # Step 5: Apply Kubernetes Manifests
-      - name: Deploy Services to Kubernetes
+      # Step 6: Deploy to Kubernetes
+      - name: Deploy Kubernetes Resources
         run: |
           services=("PatientRecordService" "AnalyticsService" "AppointmentSchedulingService" "NotificationService" "RedshiftAnalyticsService")
           for service in "${services[@]}"; do
-            echo "Deploying $service to Kubernetes..."
+            echo "Applying Kubernetes manifests for $service..."
             kubectl apply -f "./$service/manifests/deployment.yaml"
             kubectl apply -f "./$service/manifests/service.yaml"
           done
-          echo "Deploying ingress..."
+          echo "Applying ingress..."
           kubectl apply -f ./ingress.yaml
-          echo "All services deployed successfully."
+          echo "Deployment completed."
 
-      # Step 6: Verify Deployment
+      # Step 7: Verify Deployment
       - name: Verify Deployment
         run: |
-          echo "Fetching Kubernetes resources..."
           kubectl get pods
           kubectl get services
           kubectl get ingress
-          echo "Deployment verification completed."
