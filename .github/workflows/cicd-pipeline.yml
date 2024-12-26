@@ -20,12 +20,12 @@ jobs:
     # Step 2: Install Dependencies
     - name: Install Minikube and Dependencies
       run: |
-        # Install required tools
+        set -eux
         sudo apt-get update
         sudo apt-get install -y apt-transport-https curl conntrack socat software-properties-common
 
         # Remove the outdated Kubernetes repo and add the correct one
-        sudo rm /etc/apt/sources.list.d/kubernetes.list
+        sudo [ -f /etc/apt/sources.list.d/kubernetes.list ] && sudo rm /etc/apt/sources.list.d/kubernetes.list
         echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
         sudo apt-get update
 
@@ -38,6 +38,7 @@ jobs:
 
         # Add user to the Docker group
         sudo usermod -aG docker $USER
+        newgrp docker
 
         # Install Minikube
         curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
@@ -48,17 +49,20 @@ jobs:
     # Step 3: Start Minikube
     - name: Start Minikube
       run: |
+        set -eux
         sudo minikube start --driver=none
         sudo minikube addons enable ingress
 
     # Step 4: Apply Ingress Controller
     - name: Apply Ingress Controller
       run: |
+        set -eux
         kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
 
     # Step 5: Build Docker Images
     - name: Build Docker Images
       run: |
+        set -eux
         for service in AppointmentSchedulingService NotificationService PatientRecordService AnalyticsService RedshiftAnalyticsService; do
           docker build -t $service:latest ./services/$service/docker/
         done
@@ -66,6 +70,7 @@ jobs:
     # Step 6: Apply Kubernetes Manifests
     - name: Deploy to Kubernetes
       run: |
+        set -eux
         kubectl apply -f ./services/AppointmentSchedulingService/manifests/
         kubectl apply -f ./services/NotificationService/manifests/
         kubectl apply -f ./services/PatientRecordService/manifests/
@@ -76,6 +81,7 @@ jobs:
     # Step 7: Run Unit Tests
     - name: Run Tests
       run: |
+        set -eux
         # Install Python and pip
         sudo apt-get install -y python3 python3-pip
 
