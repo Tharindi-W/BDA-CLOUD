@@ -20,7 +20,7 @@ jobs:
       # Step 2: Install Dependencies
       - name: Install Dependencies
         run: |
-          echo "Installing only necessary dependencies..."
+          echo "Installing necessary dependencies..."
           sudo apt-get update
           sudo apt-get install -y apt-transport-https curl conntrack socat
           echo "Dependencies installed."
@@ -45,18 +45,31 @@ jobs:
       - name: Build Docker Images
         run: |
           eval $(minikube docker-env)
-          services=("PatientRecordService" "AnalyticsService" "AppointmentSchedulingService" "NotificationService" "RedshiftAnalyticsService")
-          for service in "${services[@]}"; do
+          # Declare services with corresponding lowercase Docker tags
+          declare -A services=(
+            ["PatientRecordService"]="patient-record-service"
+            ["AnalyticsService"]="analytics-service"
+            ["AppointmentSchedulingService"]="appointment-scheduling-service"
+            ["NotificationService"]="notification-service"
+            ["RedshiftAnalyticsService"]="redshift-analytics-service"
+          )
+          for service in "${!services[@]}"; do
             echo "Building Docker image for $service..."
-            docker build -t "$service:latest" -f "./$service/docker/Dockerfile" .
+            docker build -t "${services[$service]}:latest" -f "./$service/docker/Dockerfile" .
           done
           echo "Docker images built successfully."
 
       # Step 6: Deploy to Kubernetes
       - name: Deploy Kubernetes Resources
         run: |
-          services=("PatientRecordService" "AnalyticsService" "AppointmentSchedulingService" "NotificationService" "RedshiftAnalyticsService")
-          for service in "${services[@]}"; do
+          declare -A services=(
+            ["PatientRecordService"]="patient-record-service"
+            ["AnalyticsService"]="analytics-service"
+            ["AppointmentSchedulingService"]="appointment-scheduling-service"
+            ["NotificationService"]="notification-service"
+            ["RedshiftAnalyticsService"]="redshift-analytics-service"
+          )
+          for service in "${!services[@]}"; do
             echo "Applying Kubernetes manifests for $service..."
             kubectl apply -f "./$service/manifests/deployment.yaml"
             kubectl apply -f "./$service/manifests/service.yaml"
