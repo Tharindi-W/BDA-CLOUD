@@ -45,7 +45,6 @@ jobs:
       - name: Build Docker Images
         run: |
           eval $(minikube docker-env)
-          # Declare services with corresponding lowercase Docker tags
           declare -A services=( 
             ["PatientRecordService"]="patient-record-service"
             ["AnalyticsService"]="analytics-service"
@@ -77,9 +76,40 @@ jobs:
           kubectl apply -f ./ingress.yaml
           echo "Deployment completed."
 
-      # Step 7: Verify Deployment
-      - name: Verify Deployment
+      # Step 7: Wait for Pods to be Ready
+      # You can remove this part if not needed
+      - name: Wait for Pods to Be Ready
         run: |
+          echo "Waiting for pods to be ready..."
+          sleep 180  # Wait for 3 minutes
           kubectl get pods
-          kubectl get services
-          kubectl get ingress
+          kubectl wait --for=condition=ready pod --all --timeout=300s
+          echo "All pods are ready."
+
+      # Step 8: Verify Job Status
+      # You can remove this part if not needed
+      - name: Verify Jobs
+        run: |
+          echo "Checking jobs status..."
+          kubectl get jobs
+          echo "Jobs status verified."
+
+      # Step 9: Run Tests
+      # You can remove this part if not needed
+      - name: Run Tests
+        run: |
+          echo "Running tests..."
+          python Test.py
+          echo "Tests executed successfully."
+
+      # Step 10: Commit Changes
+      # You can remove this part if not needed
+      - name: Commit Changes to Git
+        run: |
+          echo "Committing changes to Git..."
+          git config --global user.email "you@example.com"
+          git config --global user.name "Your Name"
+          git add .
+          git commit -m "Automated CI/CD pipeline updates."
+          git push
+          echo "Changes committed to Git."
