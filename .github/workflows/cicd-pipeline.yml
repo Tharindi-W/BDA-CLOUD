@@ -16,30 +16,29 @@ jobs:
     # Step 1: Checkout the repository
     - name: Checkout Repository
       uses: actions/checkout@v3
-
-    # Step 2: Install Dependencies
+    
     - name: Install Minikube and Dependencies
       run: |
         set -eux
         sudo apt-get update
         sudo apt-get install -y apt-transport-https curl conntrack socat software-properties-common
-
+    
         # Remove the outdated Kubernetes repo and add the correct one
         sudo [ -f /etc/apt/sources.list.d/kubernetes.list ] && sudo rm /etc/apt/sources.list.d/kubernetes.list
-        echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+        echo "deb https://apt.kubernetes.io/ kubernetes-jammy main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
         sudo apt-get update
-
+    
         # Install cri-tools and Docker
         sudo apt-get install -y cri-tools
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
         echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
         sudo apt-get update
         sudo apt-get install -y docker-ce docker-ce-cli containerd.io
-
+    
         # Add user to the Docker group
         sudo usermod -aG docker $USER
         newgrp docker
-
+    
         # Install Minikube
         curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
         chmod +x minikube
