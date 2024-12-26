@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  redshift-analytics:
+    build: .
+    ports:
+      - "5005:5005"
+    environment:
+      - REDSHIFT_HOST=myredshiftcluster.csqajvgqkn5v.us-east-1.redshift.amazonaws.com:5439/analyticsdb
+      - REDSHIFT_USER=admin
+      - REDSHIFT_PASSWORD=E17299$sde
+      - REDSHIFT_DBNAME=analyticsdb

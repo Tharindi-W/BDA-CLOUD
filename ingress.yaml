@@ -1,0 +1,95 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: meditrack-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: meditrack.local
+    http:
+      paths:
+      - path: /patients
+        pathType: Prefix
+        backend:
+          service:
+            name: patient-record-service
+            port:
+              number: 5000
+      - path: /notifications/schedule
+        pathType: Prefix
+        backend:
+          service:
+            name: notification-service
+            port:
+              number: 5002
+      - path: /notifications/reminders
+        pathType: Prefix
+        backend:
+          service:
+            name: notification-service
+            port:
+              number: 5002
+      - path: /appointments
+        pathType: Prefix
+        backend:
+          service:
+            name: appointment-scheduling-service
+            port:
+              number: 5001
+      - path: /aggregation/appointments_per_doctor
+        pathType: Prefix
+        backend:
+          service:
+            name: analytics-service
+            port:
+              number: 5003
+      - path: /aggregation/appointments_over_time
+        pathType: Prefix
+        backend:
+          service:
+            name: analytics-service
+            port:
+              number: 5003
+      - path: /aggregation/common_conditions_by_specialty
+        pathType: Prefix
+        backend:
+          service:
+            name: analytics-service
+            port:
+              number: 5003
+      - path: /aggregation/average_appointments_per_patient
+        pathType: Prefix
+        backend:
+          service:
+            name: analytics-service
+            port:
+              number: 5003
+      - path: /sync/appointments_per_doctor
+        pathType: Prefix
+        backend:
+          service:
+            name: redshift-analytics-service
+            port:
+              number: 5005
+      - path: /sync/appointments_over_time
+        pathType: Prefix
+        backend:
+          service:
+            name: redshift-analytics-service
+            port:
+              number: 5005              
+      - path: /sync/common_conditions_by_specialty
+        pathType: Prefix
+        backend:
+          service:
+            name: redshift-analytics-service
+            port:
+              number: 5005 
+      - path: /sync/average_appointments_per_patient
+        pathType: Prefix
+        backend:
+          service:
+            name: redshift-analytics-service
+            port:
+              number: 5005 
+
