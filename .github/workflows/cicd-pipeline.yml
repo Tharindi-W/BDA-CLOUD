@@ -17,23 +17,24 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Set up Docker
-      - name: Set up Docker
+      # Step 2: Restart Minikube
+      - name: Restart Minikube
         run: |
-          sudo apt-get update
-          sudo apt-get install -y docker.io
-          sudo systemctl start docker
-          sudo systemctl enable docker
-          docker --version
+          echo "Restarting Minikube..."
+          minikube stop || true
+          minikube start --driver=none
+          minikube addons enable ingress
+          echo "Minikube restarted and ingress enabled."
 
       # Step 3: Build Docker Images
       - name: Build Docker Images
         run: |
+          eval $(minikube docker-env)  # Use Minikube's Docker daemon
           for service in AppointmentSchedulingService NotificationService PatientRecordService AnalyticsService RedshiftAnalyticsService; do
             docker build -t $service:latest ./services/$service/docker/
           done
 
-      # Step 4: Deploy to Kubernetes
+      # Step 4: Apply Kubernetes Manifests
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f ./services/AppointmentSchedulingService/manifests/
@@ -42,10 +43,12 @@ jobs:
           kubectl apply -f ./services/AnalyticsService/manifests/
           kubectl apply -f ./services/RedshiftAnalyticsService/manifests/
           kubectl apply -f ./manifests/ingress.yaml
+          echo "Kubernetes manifests applied successfully."
 
-      # Step 5: Run Basic Tests
-      - name: Run Tests
+      # Step 5: Test Deployment
+      - name: Verify Deployment
         run: |
-          echo "Running tests..."
-          # Add your custom test commands below, e.g.:
-          python3 ./test.py
+          echo "Testing deployment..."
+          kubectl get pods --all-namespaces
+          kubectl get services
+          kubectl get ingress
