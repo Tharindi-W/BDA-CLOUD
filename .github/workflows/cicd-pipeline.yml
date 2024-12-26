@@ -24,7 +24,7 @@ jobs:
         sudo apt-get update
 
         # Install required tools
-        sudo apt-get install -y apt-transport-https curl conntrack cri-tools
+        sudo apt-get install -y apt-transport-https curl conntrack cri-tools socat software-properties-common
 
         # Install Docker
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
@@ -73,7 +73,7 @@ jobs:
           docker push localhost:5000/$service:latest
         done
 
-    # Step 7: Apply Kubernetes Manifests
+    # Step 7: Apply Kubernetes Manifests and Ingress
     - name: Deploy to Kubernetes
       run: |
         kubectl apply -f ./services/AppointmentSchedulingService/manifests/
@@ -81,7 +81,7 @@ jobs:
         kubectl apply -f ./services/PatientRecordService/manifests/
         kubectl apply -f ./services/AnalyticsService/manifests/
         kubectl apply -f ./services/RedshiftAnalyticsService/manifests/
-        kubectl apply -f ./ingress/
+        kubectl apply -f ./manifests/ingress.yaml
 
     # Step 8: Run Integration Tests
     - name: Run Integration Tests
